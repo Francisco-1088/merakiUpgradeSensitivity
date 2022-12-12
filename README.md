@@ -67,4 +67,5 @@ This script allows a customer to identify a subset of networks through a tag (`f
 2. This script can only delay upgrades to a date 30 or fewer days into the future
 3. If delaying networks bound to templates, all networks bound to the template must have the tag defined under `delay_tag`
 4. It is not advisable to indefinitely delay upgrades, as this may compromise your deployment and make it vulnerable to security exploits, and will keep you from receiving the latest features from Cisco Meraki
-5. Start small, and test the script with a small number of networks, and progressively increase the number of sites until you get a feel for the time it takes for the script to gather data and push configs. 
+5. If you need a good resource to automatically re-run this tool, [this article](https://towardsdatascience.com/how-to-schedule-python-scripts-with-cron-the-only-guide-youll-ever-need-deea2df63b4e) offers a good tutorial to schedule python scripts with Cron. In this case, probably the best use case for the script is delaying by a specific number of days using `delay_days` instead of a specific date with `delay_specific_date`
+6. Start small, and test the script with a small number of networks, and progressively increase the number of sites until you get a feel for the time it takes for the script to gather data and push configs. 
