@@ -43,9 +43,6 @@ This script allows a customer to identify a subset of networks through a tag (`f
 * Add the Organization ID of the organization where target networks exists. You can find your Org ID easily by right clicking anywhere in the screen while logged in to your organization, and clicking "View Page Source". In the resulting page use "Find" to look for the keyword `Mkiconf.org_id`
 
 ![image alt text](images/org_id.png)
-* Add the Source Network ID for the network storing all of the camera profiles created in Prerequisites #5. You can find this ID easily by navigating to your Source Network in the Meraki Dashboard, right-clicking anywhere and choosing "View Page Source". In the resulting page use "Find" to look for the keyword `Mkiconf.locale_id`. Copy the number between the quotation marks, and prepend the string `L_` right before it, and add it to the configuration file under `src_net_id`. For example, if your template's ID is `34567897`, the value you should input in the configuration file is `L_34567897`.
-
-![image alt text](images/template_id.png)
 * List the products that you want to delay upgrades for on a per network basis. Acceptable options are `appliance`, `camera`, `cellularGateway`, `wireless`, `switch` and `sensor`. You should only include the specific product lines you want to delay upgrades for.
 * Set either `delay_use_days` or `delay_use_specific_date` to `True`.
 * If `delay_use_days` is set to `True`, specify a number of days into the future to delay your upgrades to. This can never be more than 30 days. The time of the upgrade will be kept the same, only the day in which it occurs will change.
