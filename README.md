@@ -55,7 +55,9 @@ This script allows a customer to identify a subset of networks through a tag (`f
 
 5. When tagging networks bound to templates, ALL networks bound to the template must have the `fw-delay` tag, as it is not possible to only upgrade a specific network in the template while not the others. The upgrade time will match whatever timezone you have configured in the child network.
 
-6. After executing the script, make sure to go to `Organization - Firmware upgrades - Scheduled changes` and verify that the new upgrade dates and times match your expectation
+6. Run the script with `python main.py` 
+
+7. After executing the script, make sure to go to `Organization - Firmware upgrades - Scheduled changes` and verify that the new upgrade dates and times match your expectation
 
 **Note:** If using the `supervised=True` configuration in the `config.py` file, every time the script will apply configuration changes it will prompt you to accept whether you want to continue or not. The prompt ONLY accepts `Y` for continuing, or `N` for skipping, and it is cap-sensitive. Any other input will break execution. 
 
