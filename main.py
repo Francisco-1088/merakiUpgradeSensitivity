@@ -96,34 +96,35 @@ if __name__ == "__main__":
         print("These are the pending upgrades in your organization:")
         print_tabulate(upgrades)
     # Make list of networks bound to templates and their associated tags
-    templated_networks = [
-        {'net_name': net['name'],
-         'net_id': net['id'],
-         'template_id': net['configTemplateId'],
-         'tags': net['tags']} for net in networks if net['isBoundToConfigTemplate'] == True]
-    # These are the networks you currently have bound to templates
-    if config.verbose==True:
-        print("These are the templated networks in scope in your organization:")
-        print_tabulate(templated_networks)
-    # Find the unique templates with bound networks
-    unique_templates_to_check = pd.DataFrame(templated_networks).template_id.unique()
-    unique_templates_to_upgrade = []
-    # Find if all networks bound to the template are tagged with fw-delay
-    for id in unique_templates_to_check:
-        nets = []
-        for net in templated_networks:
-            if net['template_id'] == id:
-                nets.append(net)
-        fw_tag = []
-        for net in nets:
-            if "fw-delay" in net['tags']:
-                tag = "fw-delay"
-            else:
-                tag = ""
-            fw_tag.append(tag)
-        s = set(fw_tag)
-        if len(s) == 1:
-            unique_templates_to_upgrade.append(id)
+    if len(templates)>0:
+        templated_networks = [
+            {'net_name': net['name'],
+             'net_id': net['id'],
+             'template_id': net['configTemplateId'],
+             'tags': net['tags']} for net in networks if net['isBoundToConfigTemplate'] == True]
+        # These are the networks you currently have bound to templates
+        if config.verbose==True:
+            print("These are the templated networks in scope in your organization:")
+            print_tabulate(templated_networks)
+        # Find the unique templates with bound networks
+        unique_templates_to_check = pd.DataFrame(templated_networks).template_id.unique()
+        unique_templates_to_upgrade = []
+        # Find if all networks bound to the template are tagged with fw-delay
+        for id in unique_templates_to_check:
+            nets = []
+            for net in templated_networks:
+                if net['template_id'] == id:
+                    nets.append(net)
+            fw_tag = []
+            for net in nets:
+                if "fw-delay" in net['tags']:
+                    tag = "fw-delay"
+                else:
+                    tag = ""
+                fw_tag.append(tag)
+            s = set(fw_tag)
+            if len(s) == 1:
+                unique_templates_to_upgrade.append(id)
     # Find standalone networks with the fw-delay tag
     standalone_net_ids = []
     for net in networks:
@@ -131,7 +132,10 @@ if __name__ == "__main__":
             standalone_net_ids.append(net['id'])
 
     # Combine both the unique templates to update and the standalone networks to update
-    net_ids_to_modify = standalone_net_ids + unique_templates_to_upgrade
+    if len(templates)>0:
+        net_ids_to_modify = standalone_net_ids + unique_templates_to_upgrade
+    else:
+        net_ids_to_modify = standalone_net_ids
 
     # Filter list of upgrades with the previous list and check if the product to upgrade is listed in the config file
     network_upgrades = [
