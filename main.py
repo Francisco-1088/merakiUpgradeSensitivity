@@ -90,8 +90,8 @@ if __name__ == "__main__":
     if config.verbose==True:
         print("These are the networks in your organization with the fw-delay tag:")
         print_tabulate(networks)
-    # Get current list of upgrades with "Pending" status
-    upgrades = dashboard.organizations.getOrganizationFirmwareUpgrades(organizationId=config.org_id, status="Pending")
+    # Get current list of upgrades with "Scheduled" status
+    upgrades = dashboard.organizations.getOrganizationFirmwareUpgrades(organizationId=config.org_id, status="Scheduled")
     if config.verbose==True:
         print("These are the pending upgrades in your organization:")
         print_tabulate(upgrades)
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # Filter list of upgrades with the previous list and check if the product to upgrade is listed in the config file
     network_upgrades = [
         upgrade for upgrade in upgrades if
-        upgrade['network']['id'] in net_ids_to_modify and upgrade['productType'] in config.products
+        upgrade['network']['id'] in net_ids_to_modify and upgrade['productTypes'] in config.products
     ]
     if config.verbose==True:
         print("These are the upgrades to delay:")
@@ -154,7 +154,7 @@ if __name__ == "__main__":
             for result in results:
                 for key in result['upgrade']["products"].keys():
                     for upgrade in network_upgrades:
-                        if upgrade['network']['id'] == result['net_id'] and upgrade['productType'] == key:
+                        if upgrade['network']['id'] == result['net_id'] and upgrade['productTypes'] == key:
                             if result['upgrade']['products'][key]['nextUpgrade']['time'] != "":
                                 result['upgrade']['products'][key].pop('currentVersion')
                                 result['upgrade']['products'][key].pop('lastUpgrade')
@@ -221,7 +221,7 @@ if __name__ == "__main__":
         for result in results:
             for key in result['upgrade']["products"].keys():
                 for upgrade in network_upgrades:
-                    if upgrade['network']['id'] == result['net_id'] and upgrade['productType'] == key:
+                    if upgrade['network']['id'] == result['net_id'] and upgrade['productTypes'] == key:
                         if result['upgrade']['products'][key]['nextUpgrade']['time'] != "":
                             result['upgrade']['products'][key].pop('currentVersion')
                             result['upgrade']['products'][key].pop('lastUpgrade')
