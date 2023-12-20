@@ -29,8 +29,9 @@ if (config.delay_use_days and config.delay_use_specific_date) == True:
     print(f"Error! Cannot set both delay_use_days and delay_use_specific_date to True. Aborting script.")
     exit(1)
 elif config.delay_use_days == True:
-    if config.delay_days>30:
-        print(f"Error! Target date cannot be more than 30 days into the future. Chosen date is {config.delay_days} days into the future.")
+    if config.delay_days > 30:
+        print(
+            f"Error! Target date cannot be more than 30 days into the future. Chosen date is {config.delay_days} days into the future.")
         exit(1)
     else:
         current_time = datetime.now()
@@ -41,8 +42,10 @@ elif config.delay_use_specific_date == True:
     delay_date = datetime.strptime(delay_date_str, "%Y-%m-%dT%H:%M:%SZ")
     delta = delay_date - current_time
     if delta.days > 30:
-        print(f"Error! Target date cannot be more than 30 days into the future. Chosen date is {delta} days into the future.")
+        print(
+            f"Error! Target date cannot be more than 30 days into the future. Chosen date is {delta} days into the future.")
         exit(1)
+
 
 def print_tabulate(data):
     """
@@ -51,6 +54,7 @@ def print_tabulate(data):
     :return:
     """
     print(tabulate(pd.DataFrame(data), headers='keys', tablefmt='fancy_grid'))
+
 
 async def get_network_firmware_upgrades(aiomeraki, id):
     """
@@ -61,6 +65,7 @@ async def get_network_firmware_upgrades(aiomeraki, id):
     """
     upg = await aiomeraki.networks.getNetworkFirmwareUpgrades(id)
     return {"net_id": id, "upgrade": upg}
+
 
 async def get_upgrades(aiomeraki, net_ids_to_modify):
     """
@@ -78,53 +83,64 @@ async def get_upgrades(aiomeraki, net_ids_to_modify):
         results.append(result)
     return results
 
+
 if __name__ == "__main__":
     # Get network templates
     templates = dashboard.organizations.getOrganizationConfigTemplates(organizationId=config.org_id)
-    if config.verbose==True:
+    if config.verbose == True:
         print("These are the templates in your organization:")
         print_tabulate(templates)
     # Get list of networks with tag fw-delay
     networks = dashboard.organizations.getOrganizationNetworks(organizationId=config.org_id, total_pages=-1,
                                                                tags=['fw-delay'])
-    if config.verbose==True:
+    if config.verbose == True:
         print("These are the networks in your organization with the fw-delay tag:")
         print_tabulate(networks)
     # Get current list of upgrades with "Scheduled" status
     upgrades = dashboard.organizations.getOrganizationFirmwareUpgrades(organizationId=config.org_id, status="Scheduled")
-    if config.verbose==True:
+    # Break up switch upgrades into switch and switchCatalyst to match network endpoints
+    upgrades_to_append = list()
+    for upgrade in upgrades:
+        if upgrade['productTypes'] == 'switch':
+            upgrade_to_append = {k: upgrade[k] for k in upgrade.keys()}
+            upgrade_to_append['productTypes'] = 'switchCatalyst'
+            upgrades_to_append.append(upgrade_to_append)
+    for upgrade in upgrades_to_append:
+        upgrades.append(upgrade)
+    if config.verbose == True:
         print("These are the pending upgrades in your organization:")
         print_tabulate(upgrades)
     # Make list of networks bound to templates and their associated tags
-    if len(templates)>0:
+    if len(templates) > 0:
         templated_networks = [
             {'net_name': net['name'],
              'net_id': net['id'],
              'template_id': net['configTemplateId'],
              'tags': net['tags']} for net in networks if net['isBoundToConfigTemplate'] == True]
         # These are the networks you currently have bound to templates
-        if config.verbose==True:
+        if config.verbose == True:
             print("These are the templated networks in scope in your organization:")
             print_tabulate(templated_networks)
-        # Find the unique templates with bound networks
-        unique_templates_to_check = pd.DataFrame(templated_networks).template_id.unique()
-        unique_templates_to_upgrade = []
-        # Find if all networks bound to the template are tagged with fw-delay
-        for id in unique_templates_to_check:
-            nets = []
-            for net in templated_networks:
-                if net['template_id'] == id:
-                    nets.append(net)
-            fw_tag = []
-            for net in nets:
-                if "fw-delay" in net['tags']:
-                    tag = "fw-delay"
-                else:
-                    tag = ""
-                fw_tag.append(tag)
-            s = set(fw_tag)
-            if len(s) == 1:
-                unique_templates_to_upgrade.append(id)
+        if len(templated_networks)>0:
+            # Find the unique templates with bound networks
+            unique_templates_to_check = pd.DataFrame(templated_networks).template_id.unique()
+            unique_templates_to_upgrade = []
+            # Find if all networks bound to the template are tagged with fw-delay
+            for id in unique_templates_to_check:
+                nets = []
+                for net in templated_networks:
+                    if net['template_id'] == id:
+                        nets.append(net)
+                fw_tag = []
+                for net in nets:
+                    if "fw-delay" in net['tags']:
+                        tag = "fw-delay"
+                    else:
+                        tag = ""
+                    fw_tag.append(tag)
+                s = set(fw_tag)
+                if len(s) == 1:
+                    unique_templates_to_upgrade.append(id)
     # Find standalone networks with the fw-delay tag
     standalone_net_ids = []
     for net in networks:
@@ -133,7 +149,10 @@ if __name__ == "__main__":
 
     # Combine both the unique templates to update and the standalone networks to update
     if len(templates)>0:
-        net_ids_to_modify = standalone_net_ids + unique_templates_to_upgrade
+        if len(templated_networks) > 0:
+            net_ids_to_modify = standalone_net_ids + unique_templates_to_upgrade
+        else:
+            net_ids_to_modify = standalone_net_ids
     else:
         net_ids_to_modify = standalone_net_ids
 
@@ -142,13 +161,14 @@ if __name__ == "__main__":
         upgrade for upgrade in upgrades if
         upgrade['network']['id'] in net_ids_to_modify and upgrade['productTypes'] in config.products
     ]
-    if config.verbose==True:
+    if config.verbose == True:
         print("These are the upgrades to delay:")
         print_tabulate(network_upgrades)
-    if config.supervised==True:
+    if config.supervised == True:
         print("These are the upgrades to delay:")
         print_tabulate(network_upgrades)
         proceed = input("Do you wish to proceed? (Y/N): ")
+        products_to_skip = set()
         if proceed == 'Y':
             # Start Async event loop
             loop = asyncio.get_event_loop()
@@ -157,24 +177,54 @@ if __name__ == "__main__":
             # Create list of updates to upgrade settings per network and the date we wish to push to
             for result in results:
                 for key in result['upgrade']["products"].keys():
-                    for upgrade in network_upgrades:
-                        if upgrade['network']['id'] == result['net_id'] and upgrade['productTypes'] == key:
-                            if result['upgrade']['products'][key]['nextUpgrade']['time'] != "":
-                                result['upgrade']['products'][key].pop('currentVersion')
-                                result['upgrade']['products'][key].pop('lastUpgrade')
-                                result['upgrade']['products'][key].pop('availableVersions')
-                                upg_time = datetime.strptime(result['upgrade']['products'][key]['nextUpgrade']['time'],
-                                                             "%Y-%m-%dT%H:%M:%SZ")
-                                # If setting to a specific date and time
-                                if config.delay_use_specific_date == True:
-                                    new_upg_time = delay_date
-                                # If delaying by a set number of days
-                                else:
-                                    delta = delay_date - upg_time
-                                    new_upg_time = upg_time + timedelta(days=delta.days)
-                                result['upgrade']['products'][key]['nextUpgrade'] = {
-                                    'time': new_upg_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                                    'toVersion': result['upgrade']['products'][key]['nextUpgrade']['toVersion']}
+                    if key in config.products:
+                        for upgrade in network_upgrades:
+                            if upgrade['network']['id'] == result['net_id'] and upgrade['productTypes'] == key:
+                                if result['upgrade']['products'][key]['nextUpgrade']['time'] != "":
+                                    # Check if target release is an available release in the network
+                                    if result['upgrade']['products'][key]['nextUpgrade']['toVersion']['id'] not in [
+                                        version['id'] for version in result['upgrade']['products'][key]['availableVersions']
+                                    ]:
+                                        print(
+                                            "Scheduled upgrade target version is not an available version in this network "
+                                            "and thus it cannot be updated by this tool.")
+                                        print("The available software versions for this product in this network are: ")
+                                        print_tabulate(result['upgrade']['products'][key]['availableVersions'])
+                                        proceed = input("Do you wish to change the scheduled upgrade to one of these "
+                                                        "versions instead?(Y/N): ")
+                                        if proceed == 'Y':
+                                            version = int(
+                                                input("Please, enter the corresponding index for the version you wish "
+                                                      "to change this update to: "))
+                                            # Update target upgrade version to selected version
+                                            result['upgrade']['products'][key]['nextUpgrade']['toVersion'] = \
+                                                result['upgrade']['products'][key]['availableVersions'][version]
+                                        else:
+                                            print("Warning: This upgrade will not be modified!")
+                                            products_to_skip.add(key)
+                                            continue
+                                    result['upgrade']['products'][key].pop('currentVersion')
+                                    result['upgrade']['products'][key].pop('lastUpgrade')
+                                    result['upgrade']['products'][key].pop('availableVersions')
+                                    upg_time = datetime.strptime(result['upgrade']['products'][key]['nextUpgrade']['time'],
+                                                                 "%Y-%m-%dT%H:%M:%SZ")
+                                    # If setting to a specific date and time
+                                    if config.delay_use_specific_date == True:
+                                        new_upg_time = delay_date
+                                    # If delaying by a set number of days
+                                    else:
+                                        delta = delay_date - upg_time
+                                        new_upg_time = upg_time + timedelta(days=delta.days)
+                                    result['upgrade']['products'][key]['nextUpgrade'] = {
+                                        'time': new_upg_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                        'toVersion': result['upgrade']['products'][key]['nextUpgrade']['toVersion']}
+                    else:
+                        # If product not in config file, skip
+                        products_to_skip.add(key)
+                products_to_add = {k: result['upgrade']['products'][k] for k in
+                                   result['upgrade']['products'].keys() - products_to_skip}
+                result['upgrade']['products'] = products_to_add
+                upgrades_to_delay.append(result)
                 if config.verbose == True:
                     print("This upgrade will be added to the list of actions:")
                     print_tabulate(result['upgrade'])
@@ -198,7 +248,8 @@ if __name__ == "__main__":
             # These are the actions to push as batches
             print("These are the actions that will be pushed.")
             print_tabulate(actions)
-            test_helper = batch_helper.BatchHelper(dashboard, config.org_id, actions, linear_new_batches=False, actions_per_new_batch=100)
+            test_helper = batch_helper.BatchHelper(dashboard, config.org_id, actions, linear_new_batches=False,
+                                                   actions_per_new_batch=100)
             test_helper.prepare()
             test_helper.generate_preview()
             test_helper.execute()
@@ -223,29 +274,49 @@ if __name__ == "__main__":
         upgrades_to_delay = []
         # Create list of updates to upgrade settings per network and the date we wish to push to
         for result in results:
-            for key in result['upgrade']["products"].keys():
-                for upgrade in network_upgrades:
-                    if upgrade['network']['id'] == result['net_id'] and upgrade['productTypes'] == key:
-                        if result['upgrade']['products'][key]['nextUpgrade']['time'] != "":
-                            result['upgrade']['products'][key].pop('currentVersion')
-                            result['upgrade']['products'][key].pop('lastUpgrade')
-                            result['upgrade']['products'][key].pop('availableVersions')
-                            upg_time = datetime.strptime(result['upgrade']['products'][key]['nextUpgrade']['time'],
-                                                         "%Y-%m-%dT%H:%M:%SZ")
-                            # If setting to a specific date and time
-                            if config.delay_use_specific_date == True:
-                                new_upg_time = delay_date
-                            # If delaying by a set number of days
-                            else:
-                                delta = delay_date - upg_time
-                                new_upg_time = upg_time + timedelta(days=delta.days)
-                            result['upgrade']['products'][key]['nextUpgrade'] = {
-                                'time': new_upg_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                                'toVersion': result['upgrade']['products'][key]['nextUpgrade']['toVersion']}
+            print(result)
+        products_to_skip = set()
+        for result in results:
+            for key in result['upgrade']['products'].keys():
+                if key in config.products:
+                    for upgrade in network_upgrades:
+                        if upgrade['network']['id'] == result['net_id'] and upgrade['productTypes'] == key:
+                            if result['upgrade']['products'][key]['nextUpgrade']['time'] != "":
+                                # Check if target release is an available release in the network
+                                if result['upgrade']['products'][key]['nextUpgrade']['toVersion']['id'] not in [
+                                    version['id'] for version in result['upgrade']['products'][key]['availableVersions']
+                                ]:
+                                    print("Scheduled upgrade target version is not an available version in this network "
+                                          "and thus it cannot be updated by this tool.")
+                                    print("Warning: This upgrade will not be modified!")
+                                    products_to_skip.add(key)
+                                    continue
+                                result['upgrade']['products'][key].pop('currentVersion')
+                                result['upgrade']['products'][key].pop('lastUpgrade')
+                                result['upgrade']['products'][key].pop('availableVersions')
+                                upg_time = datetime.strptime(result['upgrade']['products'][key]['nextUpgrade']['time'],
+                                                             "%Y-%m-%dT%H:%M:%SZ")
+                                # If setting to a specific date and time
+                                if config.delay_use_specific_date == True:
+                                    new_upg_time = delay_date
+                                # If delaying by a set number of days
+                                else:
+                                    delta = delay_date - upg_time
+                                    new_upg_time = upg_time + timedelta(days=delta.days)
+                                result['upgrade']['products'][key]['nextUpgrade'] = {
+                                    'time': new_upg_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                    'toVersion': result['upgrade']['products'][key]['nextUpgrade']['toVersion']}
+                else:
+                    # If product not in config file, skip
+                    products_to_skip.add(key)
+
+            products_to_add = {k: result['upgrade']['products'][k] for k in
+                               result['upgrade']['products'].keys() - products_to_skip}
+            result['upgrade']['products'] = products_to_add
+            upgrades_to_delay.append(result)
             if config.verbose == True:
                 print("This upgrade will be added to the list of actions:")
                 print_tabulate(result['upgrade'])
-            upgrades_to_delay.append(result)
 
         # For the list of actions, generate action batches to delay the upgrades
         actions = []
@@ -256,6 +327,8 @@ if __name__ == "__main__":
         # These are the actions to push as batches
         print("These are the actions that will be pushed.")
         print_tabulate(actions)
+        for action in actions:
+            print_tabulate(action['body']['products'])
         test_helper = batch_helper.BatchHelper(dashboard, config.org_id, actions, linear_new_batches=False,
                                                actions_per_new_batch=100)
         test_helper.prepare()
